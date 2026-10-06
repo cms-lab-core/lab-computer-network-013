@@ -1,0 +1,48 @@
+apiVersion: c9s.run/v1alpha1
+kind: Topology
+metadata:
+  name: $NAME
+  namespace: $NAME
+spec:
+  expose:
+    exposeType: ClusterIP
+  naming: non-prefixed
+  definition:
+    containerlab: |-
+      name: $NAME
+      topology:
+        defaults:
+          labels:
+            flow_direction: LR
+        nodes:
+          pc1:
+            kind: linux
+            image: ghcr.io/nicolaka/netshoot:v0.16
+            labels:
+              flow_icon: pc
+            exec:
+              - /bin/sh -c "adduser -D -s /bin/sh admin 2>/dev/null || true"
+              - /bin/sh -c "echo admin:admin | chpasswd"
+              - ssh-keygen -A
+              - mkdir -p /run/sshd
+              - /bin/sh -c "echo PasswordAuthentication=yes >> /etc/ssh/sshd_config"
+              - /usr/sbin/sshd
+          web1:
+            kind: linux
+            image: ghcr.io/nicolaka/netshoot:v0.16
+            labels:
+              flow_icon: server
+            exec:
+              - /bin/sh -c "adduser -D -s /bin/sh admin 2>/dev/null || true"
+              - /bin/sh -c "echo admin:admin | chpasswd"
+              - ssh-keygen -A
+              - mkdir -p /run/sshd
+              - /bin/sh -c "echo PasswordAuthentication=yes >> /etc/ssh/sshd_config"
+              - /usr/sbin/sshd
+              - ip link set eth1 up
+              - ip addr replace 10.13.0.20/24 dev eth1
+              - mkdir -p /tmp/www
+              - /bin/sh -c "printf '<html><body>cms-network-lab-013</body></html>\\n' > /tmp/www/index.html"
+              - /bin/sh -c "busybox httpd -f -p 8080 -h /tmp/www >/tmp/httpd.log 2>&1 &"
+        links:
+          - endpoints: ["pc1:eth1", "web1:eth1"]
